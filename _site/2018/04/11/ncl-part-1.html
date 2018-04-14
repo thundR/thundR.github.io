@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <!-- (1) Optimize for mobile versions: http://goo.gl/EOpFl -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- (1) force latest IE rendering engine: bit.ly/1c8EiC9 -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+  <title>NCL Part 1 - Log Parsing</title>
+  <meta name="description" content="NCL is an online CTF competition that I’ve participated in a couple times. This time around, I thought documenting some of my findings would be helpful, since I find myself looking up the same mate..." />
+
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="MobileOptimized" content="320" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="" />
+    <meta name="twitter:title" content="NCL Part 1 - Log Parsing" />
+    <meta name="twitter:image" content="http://localhost:4000/assets/images/favicon.png" />
+    
+    <meta name="twitter:description"  content="NCL is an online CTF competition that I’ve participated in a couple times. This time around, I thought documenting some of my findings would be helpful, since I find myself looking up the same mate..." />
+    
+  
+  
+  <meta property="og:site_name" content="symbols under the dresser" />
+  <meta property="og:title" content="NCL Part 1 - Log Parsing"/>
+  
+  <meta property="og:description" content="NCL is an online CTF competition that I’ve participated in a couple times. This time around, I thought documenting some of my findings would be helpful, since I find myself looking up the same mate..." />
+  
+  <meta property="og:image" content="http://localhost:4000/assets/images/logpic.png" />
+  <meta property="og:url" content="http://localhost:4000/2018/04/11/ncl-part-1.html" >
+  <meta property="og:type" content="blog" />
+  <meta property="article:published_time" content="2018-04-11T07:00:00-07:00">
+
+  <link rel="canonical" href="http://localhost:4000/2018/04/11/ncl-part-1.html"/>
+  <link rel="shortcut icon" href="/assets/images/favicon.png" type="image/png"/>
+  <link rel="stylesheet" href="//brick.a.ssl.fastly.net/Linux+Libertine:400,400i,700,700i/Open+Sans:400,400i,700,700i">
+  <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+  <link rel="stylesheet" type="text/css" media="screen" href="/css/main.css" />
+  <link rel="stylesheet" type="text/css" media="print" href="/css/print.css" />
+</head>
+
+  <body itemscope itemtype="http://schema.org/Article">
+    <!-- header start -->
+
+
+  <a href="http://localhost:4000" class="logo-readium"><span class="logo" style="background-image: url(/assets/images/favicon.png)"></span></a>
+
+<!-- header end -->
+
+    <main class="content" role="main">
+      <article class="post">
+        
+        <div class="article-image">
+          <div class="post-image-image" style="background-image: url(/assets/images/logpic.png)">
+            Article Image
+          </div>
+          <div class="post-image-image2" style="background-image: url()">
+            Article Image
+          </div>
+          <div class="post-meta">
+            <h1 class="post-title">NCL Part 1 - Log Parsing</h1>
+            <div class="cf post-meta-text">
+              <div class="author-image" style="background-image: url(/assets/images/favicon.png)">Blog Logo</div>
+              <h4 class="author-name" itemprop="author" itemscope itemtype="http://schema.org/Person">thundR</h4>
+              on
+              <time datetime="2018-04-11 07:00">11 Apr 2018</time>
+            </div>
+            <div style="text-align:center">
+              <a href="#topofpage" class="topofpage"><i class="fa fa-angle-down"></i></a>
+            </div>
+          </div>
+        </div>
+        
+        <section class="post-content">
+          <div class="post-reading">
+            <span class="post-reading-time"></span> read
+          </div>
+          <a name="topofpage"></a>
+          <p>NCL is an online CTF competition that I’ve participated in a couple times. This time around, I thought documenting some of my findings would be helpful, since I find myself looking up the same material over and over. This is going to be pretty scattershot in terms of subjects.</p>
+
+<h2 id="log-parsing">Log Parsing</h2>
+<hr />
+<p>Most of the time, there is a section asking for some grep/sed/awk gymnastics, and I always end up with long spaghetti strings of pipes and redirects.</p>
+
+<h4 id="task-1-fail2banlog">Task 1: fail2ban.log</h4>
+<hr />
+
+<p>We are given a long and somewhat frightening <a href="http://localhost:4000/assets/fail2ban.log">fail2ban log</a>  of critical failures and errors, and asked to parse it for information. I’ll only be covering the non-trivial questions asked.</p>
+
+<h5 id="1-find-the-number-of-unique-ips-banned">1. Find the number of unique IPs banned.</h5>
+<hr />
+<p>Fail2ban shows a Ban event in the log with a string like this:
+<code class="highlighter-rouge">2016-11-28 01:10:19,438 fail2ban.actions: WARNING [ssh] Ban 195.223.55.28</code></p>
+
+<p>For this task, we need to be able to do a couple of things. First, we need to be able to take output and remove duplicates, since the log contains many duplicate Ban events. We also need to be able to remove output before the matching string, since including this output would make unique sorting impossible, as the date changes with every Ban. I’ll give the command string I used and break it up into parts:</p>
+
+<p><code class="highlighter-rouge">cat fail2ban.log | grep -E -o "Ban.{0,20}" | sort -u | wc</code></p>
+
+<p><code class="highlighter-rouge">grep -E -o "Ban.{0,20}</code> allows for the <code class="highlighter-rouge">Ban</code> string to be matched, and only shows output 20 characters to the right. This allows for the IP address to be part of the output, while removing the date string. <code class="highlighter-rouge">sort -u</code> takes only the unique strings passed to it, and <code class="highlighter-rouge">wc</code> counts up the total lines. This gave us an answer of <code class="highlighter-rouge">8</code> unique IPs banned.</p>
+
+<h5 id="2-finding-which-ip-was-banned-the-most">2. Finding which IP was banned the most.</h5>
+<hr />
+
+<p>We don’t really need to go crazy on this one, since there are only a handful of banned IPs, and counting them manually is easy. If we wanted to scale this up, maybe with a log file of hundreds of thousands of entries, we would need to bring in a new set of commands to our string.</p>
+
+<p>To start, we need to be able to pipe the output of our nicely sorted list of IPs back into grep to find occurances. This could be done easily with a bash script, but I wanted to see how far I could push a oneliner. To start, we need <code class="highlighter-rouge">xargs -i</code> for command output redirection. <code class="highlighter-rouge">-i</code> lets us insert the output of our last command into a new command as an argument variable, like so:</p>
+
+<p><code class="highlighter-rouge">cat fail2ban.log | grep -E -o "Ban.{0,20}" | sort -u | xargs -iarg grep -c arg fail2ban.log</code></p>
+
+<p>This gives us a nicely formatted list of the banned ips, but without their corresponding address strings:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="mi">1</span>
+<span class="mi">14</span>
+<span class="mi">1</span>
+<span class="mi">1</span>
+<span class="mi">1</span>
+<span class="mi">1</span>
+<span class="mi">1</span>
+<span class="mi">4</span></code></pre></figure>
+
+<p>While this is the information we need, in a large file this can be unhelpful, since we need the corresponding address next to the number of times banned to be able to relate the data. I tried to push a oneliner to do this, but it became apparent that if I were to do this in one line, it would be a mess of formatting and garbage. The cleanest I could barely call one line came out to something like this:</p>
+
+<p><code class="highlighter-rouge">var=$(cat fail2ban.log | grep -E -o "Ban.{0,20}" | sort -u) &amp;&amp; echo $var | xargs -iarg grep -c arg fail2ban.log &amp;&amp; echo $var</code></p>
+
+<p>This gives us:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="mi">1</span>
+<span class="mi">14</span>
+<span class="mi">1</span>
+<span class="mi">1</span>
+<span class="mi">1</span>
+<span class="mi">1</span>
+<span class="mi">1</span>
+<span class="mi">4</span>
+<span class="no">Ban</span> <span class="mf">108.58</span><span class="o">.</span><span class="mf">9.206</span>
+<span class="no">Ban</span> <span class="mf">116.31</span><span class="o">.</span><span class="mf">116.47</span>
+<span class="no">Ban</span> <span class="mf">12.70</span><span class="o">.</span><span class="mf">197.135</span>
+<span class="no">Ban</span> <span class="mf">195.223</span><span class="o">.</span><span class="mf">55.28</span>
+<span class="no">Ban</span> <span class="mf">47.202</span><span class="o">.</span><span class="mf">16.90</span>
+<span class="no">Ban</span> <span class="mf">91.224</span><span class="o">.</span><span class="mf">160.106</span>
+<span class="no">Ban</span> <span class="mf">91.224</span><span class="o">.</span><span class="mf">160.108</span>
+<span class="no">Ban</span> <span class="mf">92.252</span><span class="o">.</span><span class="mf">94.69</span></code></pre></figure>
+
+<p>Which is close enough. To do this properly, you could just output each into a file and have a simple script read each with something like <code class="highlighter-rouge">line1_file1 + " " + line1_file2</code> and so on.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+<hr />
+<p>These tasks were actually easier than the last competition I took part in, but I still learned a few new tricks, like <code class="highlighter-rouge">xargs -i</code>. Overall, pretty fun :)</p>
+
+        </section>
+        <footer class="post-footer">
+          <section class="share">
+            
+              
+                <a class="icon-twitter" href="http://twitter.com/share?text=NCL+Part+1+-+Log+Parsing&amp;url=http://localhost:4000/2018/04/11/ncl-part-1"
+                  onclick="window.open(this.href, 'twitter-share', 'width=550,height=255');return false;">
+                <i class="fa fa-twitter"></i><span class="hidden">twitter</span>
+                </a>
+              
+            
+              
+            
+          </section>
+        </footer>
+        <div class="bottom-teaser cf">
+          <div class="isLeft">
+            <h5 class="index-headline featured"><span>Written by</span></h5>
+            <section class="author">
+              <div class="author-image" style="background-image: url(/assets/images/favicon.png)">Blog Logo</div>
+              <h4>thundR</h4>
+              <p class="bio"></p>
+              <hr>
+              <p class="published">Published <time datetime="2018-04-11 07:00">11 Apr 2018</time></p>
+            </section>
+          </div>
+          
+          <div class="isRight">
+            <h5 class="index-headline featured"><span>Supported by</span></h5>
+            <footer class="site-footer">
+              <section class="poweredby">Proudly published with <a href="http://jekyllrb.com"> Jekyll</a></section>
+              <a class="subscribe" href="/feed.xml"> <span class="tooltip"> <i class="fa fa-rss"></i> You should subscribe to my feed.</span></a>
+              <div class="inner">
+                <section class="copyright">All content copyright <a href="/">thundR</a> &copy; 2018<br>All rights reserved.</section>
+              </div>
+            </footer>
+          </div>
+        </div>
+        
+      </article>
+    </main>
+    <div class="bottom-closer">
+      <div class="background-closer-image"  style="background-image: url(/assets/images/line_noise_1.png)">
+        Image
+      </div>
+      <div class="inner">
+        <h1 class="blog-title">symbols under the dresser</h1>
+        <h2 class="blog-description">Writeups and notes on security and other content
+</h2>
+        <a href=/ class="btn">Back to Overview</a>
+      </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
+<script type="text/javascript" src="/assets/js/jquery.fitvids.js"></script>
+<script type="text/javascript" src="/assets/js/index.js"></script>
+<script type="text/javascript" src="/assets/js/readingTime.min.js"></script>
+<script>
+(function ($) {
+  "use strict";
+  $(document).ready(function(){
+
+    var $window = $(window),
+    $image = $('.post-image-image, .teaserimage-image');
+    
+      $window.on('scroll', function() {
+        var top = $window.scrollTop();
+
+        if (top < 0 || top > 1500) { return; }
+        $image
+          .css('transform', 'translate3d(0px, '+top/3+'px, 0px)')
+          .css('opacity', 1-Math.max(top/700, 0));
+      });
+      $window.trigger('scroll');
+
+      var height = $('.article-image').height();
+      $('.post-content').css('padding-top', height + 'px');
+
+      $('a[href*=#]:not([href=#])').click(function() {
+        if (location.pathname.replace(/^\//,'') == this.pathname.replace(/^\//,'')
+         && location.hostname == this.hostname) {
+          var target = $(this.hash);
+          target = target.length ? target : $('[name=' + this.hash.slice(1) +']');
+          if (target.length) {
+            $('html,body').animate({ scrollTop: target.offset().top }, 500);
+            return false;
+          }
+        }
+      });
+
+  });
+}(jQuery));
+</script>
+
+
+  </body>
+</html>

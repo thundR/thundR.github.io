@@ -6,9 +6,91 @@
 </description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 04 Apr 2018 06:12:12 -0700</pubDate>
-    <lastBuildDate>Wed, 04 Apr 2018 06:12:12 -0700</lastBuildDate>
+    <pubDate>Sat, 14 Apr 2018 00:37:13 -0700</pubDate>
+    <lastBuildDate>Sat, 14 Apr 2018 00:37:13 -0700</lastBuildDate>
     <generator>Jekyll v3.7.3</generator>
+    
+      <item>
+        <title>NCL Part 1 - Log Parsing</title>
+        <description>&lt;p&gt;NCL is an online CTF competition that I’ve participated in a couple times. This time around, I thought documenting some of my findings would be helpful, since I find myself looking up the same material over and over. This is going to be pretty scattershot in terms of subjects.&lt;/p&gt;
+
+&lt;h2 id=&quot;log-parsing&quot;&gt;Log Parsing&lt;/h2&gt;
+&lt;hr /&gt;
+&lt;p&gt;Most of the time, there is a section asking for some grep/sed/awk gymnastics, and I always end up with long spaghetti strings of pipes and redirects.&lt;/p&gt;
+
+&lt;h4 id=&quot;task-1-fail2banlog&quot;&gt;Task 1: fail2ban.log&lt;/h4&gt;
+&lt;hr /&gt;
+
+&lt;p&gt;We are given a long and somewhat frightening &lt;a href=&quot;http://localhost:4000/assets/fail2ban.log&quot;&gt;fail2ban log&lt;/a&gt;  of critical failures and errors, and asked to parse it for information. I’ll only be covering the non-trivial questions asked.&lt;/p&gt;
+
+&lt;h5 id=&quot;1-find-the-number-of-unique-ips-banned&quot;&gt;1. Find the number of unique IPs banned.&lt;/h5&gt;
+&lt;hr /&gt;
+&lt;p&gt;Fail2ban shows a Ban event in the log with a string like this:
+&lt;code class=&quot;highlighter-rouge&quot;&gt;2016-11-28 01:10:19,438 fail2ban.actions: WARNING [ssh] Ban 195.223.55.28&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;For this task, we need to be able to do a couple of things. First, we need to be able to take output and remove duplicates, since the log contains many duplicate Ban events. We also need to be able to remove output before the matching string, since including this output would make unique sorting impossible, as the date changes with every Ban. I’ll give the command string I used and break it up into parts:&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;cat fail2ban.log | grep -E -o &quot;Ban.{0,20}&quot; | sort -u | wc&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;grep -E -o &quot;Ban.{0,20}&lt;/code&gt; allows for the &lt;code class=&quot;highlighter-rouge&quot;&gt;Ban&lt;/code&gt; string to be matched, and only shows output 20 characters to the right. This allows for the IP address to be part of the output, while removing the date string. &lt;code class=&quot;highlighter-rouge&quot;&gt;sort -u&lt;/code&gt; takes only the unique strings passed to it, and &lt;code class=&quot;highlighter-rouge&quot;&gt;wc&lt;/code&gt; counts up the total lines. This gave us an answer of &lt;code class=&quot;highlighter-rouge&quot;&gt;8&lt;/code&gt; unique IPs banned.&lt;/p&gt;
+
+&lt;h5 id=&quot;2-finding-which-ip-was-banned-the-most&quot;&gt;2. Finding which IP was banned the most.&lt;/h5&gt;
+&lt;hr /&gt;
+
+&lt;p&gt;We don’t really need to go crazy on this one, since there are only a handful of banned IPs, and counting them manually is easy. If we wanted to scale this up, maybe with a log file of hundreds of thousands of entries, we would need to bring in a new set of commands to our string.&lt;/p&gt;
+
+&lt;p&gt;To start, we need to be able to pipe the output of our nicely sorted list of IPs back into grep to find occurances. This could be done easily with a bash script, but I wanted to see how far I could push a oneliner. To start, we need &lt;code class=&quot;highlighter-rouge&quot;&gt;xargs -i&lt;/code&gt; for command output redirection. &lt;code class=&quot;highlighter-rouge&quot;&gt;-i&lt;/code&gt; lets us insert the output of our last command into a new command as an argument variable, like so:&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;cat fail2ban.log | grep -E -o &quot;Ban.{0,20}&quot; | sort -u | xargs -iarg grep -c arg fail2ban.log&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;This gives us a nicely formatted list of the banned ips, but without their corresponding address strings:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;14&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;While this is the information we need, in a large file this can be unhelpful, since we need the corresponding address next to the number of times banned to be able to relate the data. I tried to push a oneliner to do this, but it became apparent that if I were to do this in one line, it would be a mess of formatting and garbage. The cleanest I could barely call one line came out to something like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;var=$(cat fail2ban.log | grep -E -o &quot;Ban.{0,20}&quot; | sort -u) &amp;amp;&amp;amp; echo $var | xargs -iarg grep -c arg fail2ban.log &amp;amp;&amp;amp; echo $var&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;This gives us:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;14&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;
+&lt;span class=&quot;no&quot;&gt;Ban&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;108.58&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;9.206&lt;/span&gt;
+&lt;span class=&quot;no&quot;&gt;Ban&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;116.31&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;116.47&lt;/span&gt;
+&lt;span class=&quot;no&quot;&gt;Ban&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;12.70&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;197.135&lt;/span&gt;
+&lt;span class=&quot;no&quot;&gt;Ban&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;195.223&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;55.28&lt;/span&gt;
+&lt;span class=&quot;no&quot;&gt;Ban&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;47.202&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;16.90&lt;/span&gt;
+&lt;span class=&quot;no&quot;&gt;Ban&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;91.224&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;160.106&lt;/span&gt;
+&lt;span class=&quot;no&quot;&gt;Ban&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;91.224&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;160.108&lt;/span&gt;
+&lt;span class=&quot;no&quot;&gt;Ban&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;92.252&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;94.69&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Which is close enough. To do this properly, you could just output each into a file and have a simple script read each with something like &lt;code class=&quot;highlighter-rouge&quot;&gt;line1_file1 + &quot; &quot; + line1_file2&lt;/code&gt; and so on.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+&lt;hr /&gt;
+&lt;p&gt;These tasks were actually easier than the last competition I took part in, but I still learned a few new tricks, like &lt;code class=&quot;highlighter-rouge&quot;&gt;xargs -i&lt;/code&gt;. Overall, pretty fun :)&lt;/p&gt;
+</description>
+        <pubDate>Wed, 11 Apr 2018 07:00:00 -0700</pubDate>
+        <link>http://localhost:4000/2018/04/11/ncl-part-1.html</link>
+        <guid isPermaLink="true">http://localhost:4000/2018/04/11/ncl-part-1.html</guid>
+        
+        <category>featured</category>
+        
+        
+      </item>
     
       <item>
         <title>Initial Post</title>
