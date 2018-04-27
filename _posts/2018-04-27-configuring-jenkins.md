@@ -115,7 +115,7 @@ I also added another build step that comes before invoke gradle script that runs
 
 Additionally, you're going to want to tell Jenkins where your jars are going to come out under `Post-Build actions/Archive the artifacts`, so it can host them as build artifacts:
 
-![Gradle Arguments](/assets/images/4.png){:class="img-responsive"}
+![Artifact Settings](/assets/images/4.png){:class="img-responsive"}
 
 This is it! At this point, the build was working for me, and my artifacts were even being versioned off build number, with this in my build.gradle:
 
