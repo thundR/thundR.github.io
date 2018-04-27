@@ -89,9 +89,9 @@
   .highlight .nn {
     color: #555; }
   .highlight .nt {
-    color: #000080; }
+    color: #ff9494; }
   .highlight .nv {
-    color: #008080; }
+    color: #ff9494; }
   .highlight .ow {
     font-weight: bold; }
   .highlight .w {
@@ -256,7 +256,7 @@ body {
 
 .content {
   width: 100%;
-  max-width: 640px;
+  max-width: 1200px;
   margin: 0 auto;
   -webkit-box-sizing: border-box;
   -moz-box-sizing: border-box;
@@ -491,7 +491,7 @@ body {
   text-overflow: ellipsis; }
 .post .post-content {
   width: 100%;
-  font-family: Linux Libertine;
+  font-family: Open Sans, MundoSans, "Helvetica Neue", Arial, Helvetica, sans-serif;
   color: #efefef; }
   .post .post-content h1, .post .post-content h2, .post .post-content h3 {
     font-family: Open Sans, MundoSans, "Helvetica Neue", Arial, Helvetica, sans-serif; }
@@ -590,7 +590,7 @@ body {
     border-top: 1px solid #ddd; }
   .post .bottom-teaser .isLeft {
     float: left;
-    width: 47%;
+    width: 100%;
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
     box-sizing: border-box; }

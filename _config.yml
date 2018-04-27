@@ -10,7 +10,7 @@ description: > # this means to ignore newlines until "email:"
 email: thundr@protonmail.ch
 #blog logo
 logo: "/assets/images/favicon.png"
-float_logo: true # true, false (default)
+float_logo: false # true, false (default)
 
 # blog cover
 cover: "/assets/images/line_noise_1.png"
@@ -26,9 +26,6 @@ baseurl: ""
 #used to display twitter cards
 twitter_handle: ''
 
-#fill in disqus shortname to use disqus
-#disqus: disqus-shortname
-
 #google_analytics: UA-XXXXX-X
 
 # social icons and sharing options
@@ -43,6 +40,12 @@ social:
   - icon:	github
     url:	https://github.com/thundR
     desc:	Fork me on github
+    share_url:
+    share_title:
+    share_link:
+  - icon: ello
+    url:  https://ello.co/thundr
+    desc: Ello
     share_url:
     share_title:
     share_link:

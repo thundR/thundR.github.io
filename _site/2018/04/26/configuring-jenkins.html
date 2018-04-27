@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <!-- (1) Optimize for mobile versions: http://goo.gl/EOpFl -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- (1) force latest IE rendering engine: bit.ly/1c8EiC9 -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+  <title>Configuring Jenkins with GitHub, Gradle, and Nginx</title>
+  <meta name="description" content="I’ve been wanting to set up a build server for future projects for some time, and decided recently to bite the bullet and try it out, now that my first Minecraft project is at an appropriate point ..." />
+
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="MobileOptimized" content="320" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="" />
+    <meta name="twitter:title" content="Configuring Jenkins with GitHub, Gradle, and Nginx" />
+    <meta name="twitter:image" content="http://localhost:4000/assets/images/favicon.png" />
+    
+    <meta name="twitter:description"  content="I’ve been wanting to set up a build server for future projects for some time, and decided recently to bite the bullet and try it out, now that my first Minecraft project is at an appropriate point ..." />
+    
+  
+  
+  <meta property="og:site_name" content="symbols under the dresser" />
+  <meta property="og:title" content="Configuring Jenkins with GitHub, Gradle, and Nginx"/>
+  
+  <meta property="og:description" content="I’ve been wanting to set up a build server for future projects for some time, and decided recently to bite the bullet and try it out, now that my first Minecraft project is at an appropriate point ..." />
+  
+  <meta property="og:image" content="http://localhost:4000/assets/images/jenkpic.png" />
+  <meta property="og:url" content="http://localhost:4000/2018/04/26/configuring-jenkins.html" >
+  <meta property="og:type" content="blog" />
+  <meta property="article:published_time" content="2018-04-26T18:00:00-07:00">
+
+  <link rel="canonical" href="http://localhost:4000/2018/04/26/configuring-jenkins.html"/>
+  <link rel="shortcut icon" href="/assets/images/favicon.png" type="image/png"/>
+  <link rel="stylesheet" href="//brick.a.ssl.fastly.net/Linux+Libertine:400,400i,700,700i/Open+Sans:400,400i,700,700i">
+  <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+  <link rel="stylesheet" type="text/css" media="screen" href="/css/main.css" />
+  <link rel="stylesheet" type="text/css" media="print" href="/css/print.css" />
+</head>
+
+  <body itemscope itemtype="http://schema.org/Article">
+    <!-- header start -->
+
+
+  <a href="http://localhost:4000" class="logo-readium"><span class="logo" style="background-image: url(/assets/images/favicon.png)"></span></a>
+
+<!-- header end -->
+
+    <main class="content" role="main">
+      <article class="post">
+        
+        <div class="article-image">
+          <div class="post-image-image" style="background-image: url(/assets/images/jenkpic.png)">
+            Article Image
+          </div>
+          <div class="post-image-image2" style="background-image: url()">
+            Article Image
+          </div>
+          <div class="post-meta">
+            <h1 class="post-title">Configuring Jenkins with GitHub, Gradle, and Nginx</h1>
+            <div class="cf post-meta-text">
+              <div class="author-image" style="background-image: url(/assets/images/favicon.png)">Blog Logo</div>
+              <h4 class="author-name" itemprop="author" itemscope itemtype="http://schema.org/Person">thundR</h4>
+              on
+              <time datetime="2018-04-26 18:00">26 Apr 2018</time>
+            </div>
+            <div style="text-align:center">
+              <a href="#topofpage" class="topofpage"><i class="fa fa-angle-down"></i></a>
+            </div>
+          </div>
+        </div>
+        
+        <section class="post-content">
+          <div class="post-reading">
+            <span class="post-reading-time"></span> read
+          </div>
+          <a name="topofpage"></a>
+          <p>I’ve been wanting to set up a build server for future projects for some time, and decided recently to bite the bullet and try it out, now that my first Minecraft project is at an appropriate point in development. This can serve as a guide for anyone wanting to setup a ForgeGradle project in Jenkins, but most of the content will apply to a broad set of circumstances.</p>
+
+<h2 id="part-1-jenkins-install">Part 1: Jenkins Install</h2>
+<hr />
+<p>I have access to a VPS that I thought was appropriate for the task, but as I would come to find out, it had some particular features that were going to become a problem, specifically that it was running a dated Ubuntu 14 LTS. This meant that there was no native support for Java 8, which is a requirement for Jenkins.</p>
+
+<p>This meant that I needed to find a way to install Java 8 on Ubuntu 14, which boiled down to adding the WebUpd8 team repo and downloading an install script for Java 8:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nb">sudo </span>apt-add-repository ppa:webupd8team/java
+<span class="nb">sudo </span>apt-get update
+<span class="nb">sudo </span>apt-get install oracle-java8-installer</code></pre></figure>
+
+<p>Once that was squared away, I moved to getting Jenkins installed on the system. Originally I was going to run from docker, but docker required a version of the Linux kernel that would require me to edit grub records to boot from, and I didn’t want to down the entire VPS. Instead, I installed it bare metal and determined that I would have a reverse proxy in front of it. To install, I ran:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nb">sudo </span>wget <span class="nt">-q</span> <span class="nt">-O</span> - https://jenkins-ci.org/debian/jenkins-ci.org.key | <span class="nb">sudo </span>apt-key add –
+<span class="nb">sudo </span>sh <span class="nt">-c</span> <span class="s1">'echo deb http://pkg.jenkins-ci.org/debian binary/ &gt; /etc/apt/sources.list.d/jenkins.list'</span>
+<span class="nb">sudo </span>apt-get update
+<span class="nb">sudo </span>apt-get install Jenkins</code></pre></figure>
+
+<p>This was enough to get Jenkins running on the default port of 8080. Now we move to the setup of the reverse proxy through Nginx</p>
+
+<h2 id="part-2-nginx">Part 2: Nginx</h2>
+<hr />
+
+<p>Nginx was arguably the most frustrating part of this setup process, and exposed some of the shortcomings of the dpkg system that I was not aware of, as I don’t primarily use Ubuntu/Debian. Originally I just installed Nginx through the official Ubuntu repos, but after trying to get my config file to work, I realized that the version they offer is very very far out of date. What followed was a series of <code class="highlighter-rouge">sudo apt-get remove --purge</code> and <code class="highlighter-rouge">sudo dpkg -S</code> trying to get the old version to let go of the system and allow for the install of the latest stable from nginx’s repo. Additionally, I had deleted the .conf file, assuming that removing and reinstalling the package would regenerate it. It did not, and indeed does not regenerate any owned config dirs or files of a package. This is good to remember. Eventually I ran <code class="highlighter-rouge">sudo find / | grep nginx | sudo xargs rm -rf
+</code> out of frustration and this finally allowed me to cleanly install nginx from their own repo.</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nb">sudo </span>add-apt-repository ppa:nginx/stable
+<span class="nb">sudo </span>apt-get update
+<span class="nb">sudo </span>apt-get install nginx</code></pre></figure>
+
+<p>Then we moved to getting Nginx actually configured.</p>
+
+<p>First, I wanted certs for my proxy, as no one should be running HTTP in this day and age. Let’s Encrypt has certbot, a tool I’ve been meaning to learn for some time. Eventually I came to the conclusion that it was much simpler to run certbot in <code class="highlighter-rouge">--standalone</code> than the nginx mode, as it didn’t mess with any config files for nginx. I used <code class="highlighter-rouge">sudo certbot --standalone certonly</code>, making sure to <code class="highlighter-rouge">sudo service nginx stop</code> beforehand, so certbot could use port 80. This installed my certs in <code class="highlighter-rouge">/etc/letsencrypt/live/*domain*/</code> and allowed me to point to them in my nginx config file. Make sure to specify the subdomain you want to use during the certbot setup. Additionally, you can get a wildcard cert, but I don’t plan on running enough services to warrant one.</p>
+
+<p>Next, we are planning on setting this up on a subdomain, so I added a subdomain A record to my domain, how to do this will depend on your registrar.</p>
+
+<p>We can remove any sites in <code class="highlighter-rouge">/etc/nginx/sites-enabled</code> since we will be writing our own .conf file for this. In <code class="highlighter-rouge">/etc/nginx/conf.d/jenkins.conf</code>, I ended up with this file, which will redirect HTTP requests to something a bit more secure:</p>
+
+<figure class="highlight"><pre><code class="language-nginx" data-lang="nginx"><span class="k">server</span> <span class="p">{</span>
+  <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
+  <span class="kn">server_name</span> <span class="s">your.domain.here</span><span class="p">;</span>
+  <span class="kn">return</span> <span class="mi">301</span> <span class="s">https://</span><span class="nv">$host$request_uri</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">server</span> <span class="p">{</span>
+  <span class="kn">listen</span> <span class="mi">443</span><span class="p">;</span>
+  <span class="kn">server_name</span> <span class="s">your.domain.here</span><span class="p">;</span>
+
+  <span class="kn">ssl_certificate</span> <span class="n">/etc/letsencrypt/live/ci.thundr.pw/fullchain.pem</span><span class="p">;</span>
+  <span class="kn">ssl_certificate_key</span> <span class="n">/etc/letsencrypt/live/ci.thundr.pw/privkey.pem</span><span class="p">;</span>
+
+  <span class="kn">ssl</span> <span class="no">on</span><span class="p">;</span>
+  <span class="kn">ssl_session_cache</span>  <span class="nf">builtin</span><span class="p">:</span><span class="mi">1000</span>  <span class="s">shared:SSL:10m</span><span class="p">;</span>
+  <span class="kn">ssl_protocols</span>  <span class="s">TLSv1</span> <span class="s">TLSv1.1</span> <span class="s">TLSv1.2</span><span class="p">;</span>
+  <span class="kn">ssl_ciphers</span> <span class="s">HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4</span><span class="p">;</span>
+  <span class="kn">ssl_prefer_server_ciphers</span> <span class="no">on</span><span class="p">;</span>
+
+  <span class="kn">location</span> <span class="n">/</span> <span class="p">{</span>
+    <span class="kn">proxy_set_header</span>        <span class="s">Host</span> <span class="nv">$host</span><span class="p">:</span><span class="nv">$server_port</span><span class="p">;</span>
+    <span class="kn">proxy_set_header</span>        <span class="s">X-Real-IP</span> <span class="nv">$remote_addr</span><span class="p">;</span>
+    <span class="kn">proxy_set_header</span>        <span class="s">X-Forwarded-For</span> <span class="nv">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+    <span class="kn">proxy_set_header</span>        <span class="s">X-Forwarded-Proto</span> <span class="nv">$scheme</span><span class="p">;</span>
+    <span class="kn">proxy_redirect</span> <span class="s">http://localhost:8080</span> <span class="s">https://your.domain.here</span><span class="p">;</span>
+    <span class="kn">proxy_pass</span>              <span class="s">http://localhost:8080</span><span class="p">;</span>
+    <span class="c1"># Required for new HTTP-based CLI
+</span>    <span class="kn">proxy_http_version</span> <span class="mi">1</span><span class="s">.1</span><span class="p">;</span>
+    <span class="kn">proxy_request_buffering</span> <span class="no">off</span><span class="p">;</span>
+    <span class="kn">proxy_buffering</span> <span class="no">off</span><span class="p">;</span> <span class="c1"># Required for HTTP-based CLI to work over SSL
+</span>    <span class="c1"># workaround for https://issues.jenkins-ci.org/browse/JENKINS-45651
+</span>    <span class="kn">add_header</span> <span class="s">'X-SSH-Endpoint'</span> <span class="s">'jenkins.domain.tld:50022'</span> <span class="s">always</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>This allows Jenkins to be served over HTTPS! Now, for configuring Jenkins.</p>
+
+<h2 id="part-3-jenkins-setup">Part 3: Jenkins Setup</h2>
+<hr />
+
+<p>This will contain specifics for ForgeGradle.</p>
+
+<p>This section was a bit more straightforward , but still took a decent amount of trial, error, and troubleshooting. First, we can setup all the basics of the project after creating a new project with the default settings. Go to configure, and set the name and the GitHub repo in the SCM section. This is all very straightforward, so I will skip to the unclear parts.</p>
+
+<p>We need to setup build webhooks for Jenkins so it can build on GitHub push. To do that, we can use the GitHub plugin that comes with Jenkins. First, a checkbox:</p>
+
+<p><img src="/assets/images/1.png" alt="GitHub Build Trigger" class="img-responsive" /></p>
+
+<p>Now, we can go on GitHub and setup a webhook for our repo under Settings pointing to <code class="highlighter-rouge">our.domain/github_webhook</code> that will send a POST whenever we push new code to master. With this set up, we need to specify the gradle commands to run.</p>
+
+<p>Under the Build section of the configuration for your job, go to <code class="highlighter-rouge">Add build step/Invoke gradle script</code>:</p>
+
+<p><img src="/assets/images/2.png" alt="Gradle Arguments" class="img-responsive" /></p>
+
+<p>I also added another build step that comes before invoke gradle script that runs <code class="highlighter-rouge">rm -rm build/libs</code> as an Execute shell. This just cleans out the libs folder so jars don’t pile up every build.</p>
+
+<p>Additionally, you’re going to want to tell Jenkins where your jars are going to come out under <code class="highlighter-rouge">Post-Build actions/Archive the artifacts</code>, so it can host them as build artifacts:</p>
+
+<p><img src="/assets/images/4.png" alt="Gradle Arguments" class="img-responsive" /></p>
+
+<p>This is it! At this point, the build was working for me, and my artifacts were even being versioned off build number, with this in my build.gradle:</p>
+
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="n">def</span> <span class="n">build_number</span> <span class="o">=</span> <span class="err">'</span><span class="n">dev</span><span class="err">'</span>
+<span class="k">if</span> <span class="o">(</span><span class="n">System</span><span class="o">.</span><span class="na">getenv</span><span class="o">(</span><span class="err">'</span><span class="n">BUILD_NUMBER</span><span class="err">'</span><span class="o">)</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span>
+  <span class="n">build_number</span> <span class="o">=</span> <span class="n">System</span><span class="o">.</span><span class="na">getenv</span><span class="o">(</span><span class="err">'</span><span class="n">BUILD_NUMBER</span><span class="err">'</span><span class="o">)</span>
+<span class="c1">//version= 1.12-1.0.0-143-universal.jar</span>
+<span class="c1">//or in dev= 1.12-1.0.0-dev-universal.jar</span>
+<span class="n">version</span> <span class="o">=</span> <span class="s">"${project.config.mc_version}-${project.config.mod_version}-${build_number}"</span></code></pre></figure>
+
+<h2 id="conclusion">Conclusion</h2>
+<hr />
+
+<p>This was a fun project that got my toes wet in build automation and reverse proxying. I probably missed a lot of incredibly crucial details, but I won’t know until something breaks.</p>
+
+        </section>
+        <div class="bottom-teaser cf">
+          <div class="isLeft">
+            <h5 class="index-headline featured"><span>Written by</span></h5>
+            <section class="author">
+              <div class="author-image" style="background-image: url(/assets/images/favicon.png)">Blog Logo</div>
+              <h4>thundR</h4>
+              <p class="published">Published <time datetime="2018-04-26 18:00">26 Apr 2018</time></p>
+            </section>
+          </div>
+        </div>
+      </article>
+    </main>
+    <div class="bottom-closer">
+      <div class="background-closer-image"  style="background-image: url(/assets/images/line_noise_1.png)">
+        Image
+      </div>
+      <div class="inner">
+        <h1 class="blog-title">symbols under the dresser</h1>
+        <h2 class="blog-description">Writeups and notes on security and other content
+</h2>
+        <a href=/ class="btn">Back to Overview</a>
+      </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
+<script type="text/javascript" src="/assets/js/jquery.fitvids.js"></script>
+<script type="text/javascript" src="/assets/js/index.js"></script>
+<script type="text/javascript" src="/assets/js/readingTime.min.js"></script>
+<script>
+(function ($) {
+  "use strict";
+  $(document).ready(function(){
+
+    var $window = $(window),
+    $image = $('.post-image-image, .teaserimage-image');
+    
+      $window.on('scroll', function() {
+        var top = $window.scrollTop();
+
+        if (top < 0 || top > 1500) { return; }
+        $image
+          .css('transform', 'translate3d(0px, '+top/3+'px, 0px)')
+          .css('opacity', 1-Math.max(top/700, 0));
+      });
+      $window.trigger('scroll');
+
+      var height = $('.article-image').height();
+      $('.post-content').css('padding-top', height + 'px');
+
+      $('a[href*=#]:not([href=#])').click(function() {
+        if (location.pathname.replace(/^\//,'') == this.pathname.replace(/^\//,'')
+         && location.hostname == this.hostname) {
+          var target = $(this.hash);
+          target = target.length ? target : $('[name=' + this.hash.slice(1) +']');
+          if (target.length) {
+            $('html,body').animate({ scrollTop: target.offset().top }, 500);
+            return false;
+          }
+        }
+      });
+
+  });
+}(jQuery));
+</script>
+
+
+  </body>
+</html>
